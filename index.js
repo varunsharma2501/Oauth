@@ -61,12 +61,12 @@ app.get("/google/redirect", async (req, res) => {
 app.get("/schedule_event",async(req,res)=>{
     await calendar.events.insert(
         {
-            calendarId:'primary',
+            calendarId:'9556cdb3eb00214268e83582a74002ce84c432cb7d4ac4c5764afe76970ec5c0@group.calendar.google.com',
             auth:oauth2Client,
             conferenceDataVersion:1,
             requestBody:{
-                summary:"I created this using google calendar api",
-                description:"This is the event ",
+                summary:"Created event on 04/07/24",
+                description:"Created event",
                 start:{
                     dateTime:dayjs(new Date()).add(1,"day").toISOString(),
                     timeZone:"Asia/Kolkata"
@@ -88,7 +88,56 @@ app.get("/schedule_event",async(req,res)=>{
     });
 })
 
-app.get("/list_events")
+app.get("/list_events", async (req, res) => {
+    try {
+        // Fetch list of calendars accessible to the user
+        const calendarsResponse = await calendar.calendarList.list({
+            auth: oauth2Client,
+        });
+
+        const calendars = calendarsResponse.data.items;
+
+        if (!calendars || calendars.length === 0) {
+            res.send('No calendars found.');
+            return;
+        }
+
+        const allEvents = [];
+
+        // Iterate over each calendar and fetch events
+        for (const calendarInfo of calendars) {
+            const calendarId = calendarInfo.id;
+            
+            const eventsResponse = await calendar.events.list({
+                calendarId: calendarId,
+                auth: oauth2Client,
+                timeMin: (new Date()).toISOString(),
+                maxResults: 10, // Adjust as per your requirement
+                singleEvents: true,
+                orderBy: 'startTime',
+            });
+
+            const events = eventsResponse.data.items;
+
+            if (events.length > 0) {
+                allEvents.push(...events.map(event => ({
+                    calendarId: calendarId,
+                    id: event.id,
+                    summary: event.summary,
+                    description: event.description,
+                    start: event.start.dateTime || event.start.date,
+                    end: event.end.dateTime || event.end.date,
+                    attendees: event.attendees ? event.attendees.map(attendee => attendee.email) : [],
+                })));
+            }
+        }
+
+        res.json(allEvents);
+    } catch (error) {
+        console.error('Error fetching events:', error);
+        res.status(500).send("Failed to fetch events");
+    }
+});
 
 
 app.get("/deauthorize", async (req, res) => {
