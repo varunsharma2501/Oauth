@@ -1,9 +1,16 @@
+
+/**
+ This is the code where i placed a checkbox to select which services he wants to authorize so it was actually not needed since the google Oauth itself provide checkbox but only for one time when the user first logs in 
+
+
 import express from "express";
 import dotenv from "dotenv";
 import { google } from "googleapis"; // Correct import for googleapis
 import dayjs from "dayjs"
 import {v4 as uuid} from "uuid"
+import path from "path"
 
+const dirname=path.resolve();
 
 const app = express();
 dotenv.config();
@@ -43,19 +50,46 @@ if (storedRefreshToken) {
     });
 }
 
-app.get("/google", (req, res) => {
+
+app.get('/custom-consent', (req, res) => {
+    res.sendFile(dirname+'/consent.html');
+});
+
+
+
+app.post('/process-consent', express.urlencoded({ extended: true }), (req, res) => {
+    const selectedScopes = req.body.scopes;
+    if (!selectedScopes || selectedScopes.length === 0) {
+        return res.status(400).send('No services selected');
+    }
+
     const url = oauth2Client.generateAuthUrl({
         access_type: 'offline',
-        scope: scopes
+        scope: Array.isArray(selectedScopes) ? selectedScopes : [selectedScopes]
     });
+
     res.redirect(url);
 });
 
+app.get("/google", (req, res) => {
+    res.redirect('/custom-consent');
+});
+
+
 app.get("/google/redirect", async (req, res) => {
-    const code=req.query.code;
-    const {tokens}=await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
-    res.send("user successfully got the access");
+     const error = req.query.error;
+    if (error) {
+        return res.send("Access denied");
+    }
+    const code = req.query.code;
+    try {
+        const { tokens } = await oauth2Client.getToken(code);
+        oauth2Client.setCredentials(tokens);
+        res.send("User successfully got the access");
+    } catch (error) {
+        console.error('Error during OAuth token exchange:', error);
+        res.status(500).send("Failed to get the access token");
+    }
 });
 
 app.get("/schedule_event",async(req,res)=>{
@@ -135,3 +169,4 @@ function createEmail(from, to, subject, message) {
 app.listen(3000, () => {
     console.log("server running on port 3000");
 });
+ */
