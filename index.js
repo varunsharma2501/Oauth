@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { google } from "googleapis"; // Correct import for googleapis
 import dayjs from "dayjs"
 import {v4 as uuid} from "uuid"
-
+import { parse as json2csvParse } from 'json2csv';
 
 const app = express();
 dotenv.config();
@@ -142,6 +142,118 @@ app.get("/schedule_event",async(req,res)=>{
 
 
 // here i am specifying the start and end time 
+// app.get("/list_events", async (req, res) => {
+//     try {
+//         // Fetch list of calendars accessible to the user
+//         const calendarsResponse = await calendar.calendarList.list({
+//             auth: oauth2Client,
+//         });
+
+//         const calendars = calendarsResponse.data.items;
+
+//         if (!calendars || calendars.length === 0) {
+//             res.send('No calendars found.');
+//             return;
+//         }
+
+//         const allEvents = [];
+
+//         // Iterate over each calendar and fetch events
+//         for (const calendarInfo of calendars) {
+//             const calendarId = calendarInfo.id;
+//             const startDate = dayjs().subtract(1, 'month').startOf('month').toISOString(); // Start of last month
+//             const endDate = dayjs().subtract(1, 'month').endOf('month').toISOString();     // End of last month
+
+//             const eventsResponse = await calendar.events.list({
+//                 calendarId: calendarId,
+//                 auth: oauth2Client,
+//                 timeMin: startDate,
+//                 timeMax: endDate,
+//                 maxResults: 3, // Adjust as per your requirement
+//                 singleEvents: true,
+//                 orderBy: 'startTime',
+//             });
+
+//             const events = eventsResponse.data.items;
+
+//             if (events.length > 0) {
+//                 allEvents.push(...events.map(event => ({
+//                     calendarId: calendarId,
+//                     id: event.id,
+//                     summary: event.summary,
+//                     description: event.description,
+//                     start: event.start.dateTime || event.start.date,
+//                     end: event.end.dateTime || event.end.date,
+//                     attendees: event.attendees ? event.attendees.map(attendee => attendee.email) : [],
+//                 })));
+//             }
+//         }
+
+//         res.json(allEvents);
+//     } catch (error) {
+//         console.error('Error fetching events:', error);
+//         res.status(500).send("Failed to fetch events");
+//     }
+// });
+
+// this is where i am listing events and categorizing them into calendars and sorting 
+// app.get("/list_events", async (req, res) => {
+//     try {
+//         // Fetch list of calendars accessible to the user
+//         const calendarsResponse = await calendar.calendarList.list({
+//             auth: oauth2Client,
+//         });
+
+//         const calendars = calendarsResponse.data.items;
+
+//         if (!calendars || calendars.length === 0) {
+//             res.send('No calendars found.');
+//             return;
+//         }
+
+//         const allEventsByCalendar = {};
+
+//         // Iterate over each calendar and fetch events
+//         for (const calendarInfo of calendars) {
+//             const calendarId = calendarInfo.id;
+//             // const startDate = dayjs().subtract(1, 'month').startOf('month').toISOString(); // Start of last month
+//             // const endDate = dayjs().subtract(1, 'month').endOf('month').toISOString();     // End of last month
+
+//             const eventsResponse = await calendar.events.list({
+//                 calendarId: calendarId,
+//                 auth: oauth2Client,
+//                 timeMin: (new Date()).toISOString(),
+//                 maxResults: 6, // Adjust as per your requirement
+//                 singleEvents: true,
+//                 orderBy: 'startTime',
+//             });
+
+//             const events = eventsResponse.data.items;
+
+//             if (events.length > 0) {
+//                 // Sort events by start time within the current calendar
+//                 events.sort((a, b) => (a.start.dateTime || a.start.date).localeCompare(b.start.dateTime || b.start.date));
+
+//                 // Map events to minimal details (start, end, description)
+//                 const mappedEvents = events.map(event => ({
+//                     start: event.start.dateTime || event.start.date,
+//                     end: event.end.dateTime || event.end.date,
+//                     description: event.description || '',
+//                 }));
+
+//                 // Store events grouped by calendarId
+//                 allEventsByCalendar[calendarId] = mappedEvents;
+//             }
+//         }
+
+//         res.json(allEventsByCalendar);
+//     } catch (error) {
+//         console.error('Error fetching events:', error);
+//         res.status(500).send("Failed to fetch events");
+//     }
+// });
+
+
 
 app.get("/list_events", async (req, res) => {
     try {
@@ -157,20 +269,17 @@ app.get("/list_events", async (req, res) => {
             return;
         }
 
-        const allEvents = [];
+        const allEventsByCalendar = {};
 
         // Iterate over each calendar and fetch events
         for (const calendarInfo of calendars) {
             const calendarId = calendarInfo.id;
-            const startDate = dayjs().subtract(1, 'month').startOf('month').toISOString(); // Start of last month
-            const endDate = dayjs().subtract(1, 'month').endOf('month').toISOString();     // End of last month
 
             const eventsResponse = await calendar.events.list({
                 calendarId: calendarId,
                 auth: oauth2Client,
-                timeMin: startDate,
-                timeMax: endDate,
-                maxResults: 3, // Adjust as per your requirement
+                timeMin: (new Date()).toISOString(),
+                maxResults: 6, // Adjust as per your requirement
                 singleEvents: true,
                 orderBy: 'startTime',
             });
@@ -178,25 +287,44 @@ app.get("/list_events", async (req, res) => {
             const events = eventsResponse.data.items;
 
             if (events.length > 0) {
-                allEvents.push(...events.map(event => ({
-                    calendarId: calendarId,
-                    id: event.id,
-                    summary: event.summary,
-                    description: event.description,
+                // Sort events by start time within the current calendar
+                events.sort((a, b) => (a.start.dateTime || a.start.date).localeCompare(b.start.dateTime || b.start.date));
+
+                // Map events to minimal details (start, end, description)
+                const mappedEvents = events.map(event => ({
                     start: event.start.dateTime || event.start.date,
                     end: event.end.dateTime || event.end.date,
-                    attendees: event.attendees ? event.attendees.map(attendee => attendee.email) : [],
-                })));
+                    description: event.description || '',
+                }));
+
+                // Store events grouped by calendarId
+                allEventsByCalendar[calendarId] = mappedEvents;
             }
         }
 
-        res.json(allEvents);
+        // Convert allEventsByCalendar to CSV format
+        const csv = Object.keys(allEventsByCalendar).map(calendarId => {
+            const events = allEventsByCalendar[calendarId];
+            return events.map(event => ({
+                CalendarId: calendarId,
+                Start: event.start,
+                End: event.end,
+                Description: event.description
+            }));
+        }).flat();
+
+        const csvString = json2csvParse(csv);
+
+        // Set response headers for CSV download
+        res.header('Content-Type', 'text/csv');
+        res.attachment('events.csv');
+        res.send(csvString);
+
     } catch (error) {
         console.error('Error fetching events:', error);
         res.status(500).send("Failed to fetch events");
     }
 });
-
 
 app.get("/deauthorize", async (req, res) => {
     try {
@@ -212,6 +340,7 @@ app.get("/deauthorize", async (req, res) => {
         res.status(500).send("Failed to deauthorize the user");
     }
 });
+
 // app.get("/send_email", async (req, res) => {
 //     try {
 //         const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
