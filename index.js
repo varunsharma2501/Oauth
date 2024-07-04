@@ -88,6 +88,61 @@ app.get("/schedule_event",async(req,res)=>{
     });
 })
 
+// this is normal list of events starting from toda
+// app.get("/list_events", async (req, res) => {
+//     try {
+//         // Fetch list of calendars accessible to the user
+//         const calendarsResponse = await calendar.calendarList.list({
+//             auth: oauth2Client,
+//         });
+
+//         const calendars = calendarsResponse.data.items;
+
+//         if (!calendars || calendars.length === 0) {
+//             res.send('No calendars found.');
+//             return;
+//         }
+
+//         const allEvents = [];
+
+//         // Iterate over each calendar and fetch events
+//         for (const calendarInfo of calendars) {
+//             const calendarId = calendarInfo.id;
+            
+//             const eventsResponse = await calendar.events.list({
+//                 calendarId: calendarId,
+//                 auth: oauth2Client,
+//                 timeMin: (new Date()).toISOString(),
+//                 maxResults: 10, // Adjust as per your requirement
+//                 singleEvents: true,
+//                 orderBy: 'startTime',
+//             });
+
+//             const events = eventsResponse.data.items;
+
+//             if (events.length > 0) {
+//                 allEvents.push(...events.map(event => ({
+//                     calendarId: calendarId,
+//                     id: event.id,
+//                     summary: event.summary,
+//                     description: event.description,
+//                     start: event.start.dateTime || event.start.date,
+//                     end: event.end.dateTime || event.end.date,
+//                     attendees: event.attendees ? event.attendees.map(attendee => attendee.email) : [],
+//                 })));
+//             }
+//         }
+
+//         res.json(allEvents);
+//     } catch (error) {
+//         console.error('Error fetching events:', error);
+//         res.status(500).send("Failed to fetch events");
+//     }
+// });
+
+
+// here i am specifying the start and end time 
+
 app.get("/list_events", async (req, res) => {
     try {
         // Fetch list of calendars accessible to the user
@@ -107,12 +162,15 @@ app.get("/list_events", async (req, res) => {
         // Iterate over each calendar and fetch events
         for (const calendarInfo of calendars) {
             const calendarId = calendarInfo.id;
-            
+            const startDate = dayjs().subtract(1, 'month').startOf('month').toISOString(); // Start of last month
+            const endDate = dayjs().subtract(1, 'month').endOf('month').toISOString();     // End of last month
+
             const eventsResponse = await calendar.events.list({
                 calendarId: calendarId,
                 auth: oauth2Client,
-                timeMin: (new Date()).toISOString(),
-                maxResults: 10, // Adjust as per your requirement
+                timeMin: startDate,
+                timeMax: endDate,
+                maxResults: 3, // Adjust as per your requirement
                 singleEvents: true,
                 orderBy: 'startTime',
             });
