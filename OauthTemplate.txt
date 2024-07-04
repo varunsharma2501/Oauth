@@ -1,0 +1,43 @@
+import express from "express";
+import dotenv from "dotenv";
+import { google } from "googleapis"; // Correct import for googleapis
+import dayjs from "dayjs"
+import {v4 as uuid} from "uuid"
+
+
+const app = express();
+dotenv.config();
+
+const calendar=google.calendar({
+    version:"v3",
+    auth:process.env.API_KEY
+})
+const oauth2Client = new google.auth.OAuth2(
+    process.env.YOUR_CLIENT_ID,
+    process.env.YOUR_CLIENT_SECRET,
+    process.env.YOUR_REDIRECT_URL
+);
+
+const scopes = [
+    'https://www.googleapis.com/auth/calendar'
+];
+
+app.get("/google", (req, res) => {
+    const url = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: scopes
+    });
+    res.redirect(url);
+});
+
+app.get("/google/redirect", async (req, res) => {
+    const code=req.query.code;
+    const {tokens}=await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+    res.send("user successfully got the access");
+});
+
+
+app.listen(3000, () => {
+    console.log("server running on port 3000");
+});
